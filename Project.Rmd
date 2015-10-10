@@ -1,0 +1,96 @@
+---
+title: "Maching learning project"
+author: "Vitaliy Radchenko"
+date: "6 октября 2015"
+output: html_document
+---
+
+```{r, echo=FALSE,warning=FALSE,message = FALSE}
+library(knitr)
+opts_chunk$set(warning=FALSE,message = FALSE,cache = TRUE)
+setwd("~/Downloads")
+remove_nas <- function(x){
+        rem <- character(0)
+        for (i in 1:length(colnames(x))){
+                nam <- colnames(x)[i]
+                m <- mean(is.na(x[, i, with = FALSE])|
+                                  x[, i, with = FALSE]== "")
+                if (m > 0.5) {
+                       rem <- append(rem,i) 
+                }
+        }
+        rem <- as.numeric(rem)
+        x <- x[, rem := NULL, with = FALSE]
+        
+}
+```
+
+### Downloading data
+
+```{r}
+library(data.table)
+library(caret)
+library(rpart);library(rpart.plot)
+train <- fread("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",header = T)
+test <- fread("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",header = T)
+train$classe <- factor(train$classe)
+```
+
+### Transforming data to the appropriate format
+
+```{r}
+train_check <- remove_nas(train)
+train_check <- train_check[,c(1:7):=NULL]
+```
+
+### Data slicing
+
+```{r}
+inTrain <- createDataPartition(y=train_check$classe, p=0.7, list=FALSE)
+training <- train_check[inTrain,]
+testing <- train_check[-inTrain,]
+```
+
+### Model evaluation
+
+```{r}
+library(randomForest)
+rfModel <- randomForest(classe ~ ., data = training, 
+                        importance = TRUE, ntrees = 10)
+```
+
+### Estimate results accuracy
+
+```{r}
+ptraining <- predict(rfModel, training)
+print(confusionMatrix(ptraining, training$classe))
+```
+
+### Accuracy of predicting testing set
+
+```{r}
+ptesting <- predict(rfModel, testing)
+print(confusionMatrix(ptesting, testing$classe))
+```
+
+
+### Project assighment set evaluation
+
+```{r}
+ptest <- predict(rfModel, test)
+ptest
+
+answers <- as.vector(ptest)
+
+pml_write_files = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("problem_id_", i, ".txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+pml_write_files(answers)
+```
+
